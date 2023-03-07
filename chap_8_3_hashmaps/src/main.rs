@@ -67,6 +67,8 @@ fn main5() {
 
 /// Exercises
 
+/// 1
+
 /// Median of a vector; modifies its input.
 fn median(v : &mut Vec<u32>) -> Option<f32> {
     let len = v.len();
@@ -140,6 +142,52 @@ fn median3(v: &Vec<u32>) -> Option<f32> {
     None
 }
 
+/// 2
+/// Convert a word in the Latin alphabet to pig latin.
+
+fn pig_latinize(word: &String) -> String {
+    let mut res = String::new();
+    let mut suffix = String::new();
+
+    // The variable doesn't need to be initialized, but not doing so
+    // results in a compiler warning about possible uninitialized values.
+    let mut fst_chr_is_vowel = false;
+
+    let mut iter = word.chars().peekable();
+    if let Some(c) = iter.next() {
+        let suffix = match c {
+            'a' | 'e' | 'i' | 'o' | 'u' => {
+                res.push(c.to_ascii_lowercase());
+                suffix.push_str("-hay");
+                fst_chr_is_vowel = true;
+            },
+            'a'..='z' | 'A'..='Z' => {
+                suffix.push('-');
+                suffix.push(c.to_ascii_lowercase());
+                suffix.push_str("ay");
+            }
+            _ => {
+                res.push(c.to_ascii_lowercase());
+            }
+        };
+    };
+
+    // Upper the second letter, first in the new word, if a suffix has been added.
+    if !fst_chr_is_vowel {
+        // This needs to be nested, as otherwise the compiler warns that
+        // `if let` combined with regular `if` expressions are an unstable feature.
+        if let Some(c) = iter.next() {
+            res.push_str(&c.to_uppercase().to_string());
+        }
+    }
+
+    while let Some(c) = iter.next() {
+        res.push(c);
+    }
+
+    res + &suffix
+}
+
 
 /* 
 fn main() {
@@ -164,4 +212,9 @@ fn main() {
     println!("the vector's median is: {:?}", median(&mut v));
     println!("the vector's median2 is: {:?}", median2(&mut v));
     println!("the vector's median3 is: {:?}", median3(&v));
+
+    let word1 = String::from("apple");
+    let word2 = String::from("Kílìmãñjärô");
+    let word3 = String::from("Ubiquity");
+    println!("word: {}; pig-latin: {}", word3, pig_latinize(&word3));
 }

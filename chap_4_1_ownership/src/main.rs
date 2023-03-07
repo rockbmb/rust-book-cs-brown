@@ -70,7 +70,7 @@ fn main() {
     let b = a;
 
     println!("{full}");
-    println!("{}", a[1]);
+    //println!("{}", a[1]);
 }
 
 

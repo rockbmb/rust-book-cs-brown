@@ -142,6 +142,27 @@ fn median3(v: &Vec<u32>) -> Option<f32> {
     None
 }
 
+fn mode(v : &Vec<u32>) -> Option<u32> {
+    let len = v.len();
+    if len == 0 {
+        return None;
+    }
+
+    use std::collections::HashMap;
+
+    let mut abs_freqs : HashMap<u32, usize> = HashMap::new();
+    for n in v.iter() {
+        let count = abs_freqs.entry(*n).or_insert(0);
+        *count += 1;
+    }
+
+    abs_freqs
+        .iter()
+        .max_by(|x, y| x.1.cmp(y.1))
+        .map(|tup| tup.0)
+        .copied()
+}
+
 /// 2
 /// Convert a word in the Latin alphabet to pig latin.
 
@@ -208,9 +229,10 @@ fn main() {
     let mut v = vec![1, 2, 9, 5, 3, 8, 6, 5, 3, 4, 1, 3, 1, 5, 6, 3, 8, 9, 7];
     v.reverse();
 
-    println!("the vector's median is: {:?}", median(&mut v));
-    println!("the vector's median2 is: {:?}", median2(&mut v));
-    println!("the vector's median3 is: {:?}", median3(&v));
+    println!("the vector's median is: {:?}", median(&mut v).unwrap());
+    println!("the vector's median2 is: {:?}", median2(&mut v).unwrap());
+    println!("the vector's median3 is: {:?}", median3(&v).unwrap());
+    println!("the vector's mode is {:?}", mode(&v).unwrap());
 
     let word1 = String::from("apple");
     let word2 = String::from("Kílìmãñjärô");

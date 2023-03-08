@@ -188,7 +188,6 @@ fn pig_latinize(word: &String) -> String {
     res + &suffix
 }
 
-
 /* 
 fn main() {
     use std::collections::HashMap;

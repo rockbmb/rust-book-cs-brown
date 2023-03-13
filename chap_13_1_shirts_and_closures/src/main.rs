@@ -255,9 +255,3 @@ fn main() {
     cloner();
 }
 */
-
-fn for_each_mut<T, F: ___(&mut T)>(v: &mut Vec<T>, mut f: F) {
-    for x in v.iter_mut() {
-        //f(x);
-    }
-}

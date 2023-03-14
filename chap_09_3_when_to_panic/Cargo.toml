@@ -1,5 +1,5 @@
 [package]
-name = "chap_9_3_when_to_panic"
+name = "chap_09_3_when_to_panic"
 version = "0.1.0"
 edition = "2021"
 

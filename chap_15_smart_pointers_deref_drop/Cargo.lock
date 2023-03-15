@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "chap_15_2_deref"
+name = "chap_15_smart_pointers_deref_drop"
 version = "0.1.0"

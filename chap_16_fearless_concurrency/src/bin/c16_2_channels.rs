@@ -118,6 +118,8 @@ fn main3() {
 //
 //
 
+// Below is a variable number of threads running and writing to the same
+// MPSC channel.
 fn main() {
     let (tx, rx) = mpsc::channel();
     let threads = 5;
@@ -141,10 +143,16 @@ fn main() {
         });
     }
 
+    // If the transmitter for the main thread is not dropped here,
+    // it will hang even after all children are finished writing.
+    // This doesn't seem to be documented anywhere, unsure why it happens.
     drop(tx);
 
-    for received in rx {
-        println!("Got: {}", received);
+    let mut count = 0;
+    for received in rx.iter() {
+        print!("Got: {} --- ", received);
+        count += 1;
+        println!("main thread: message number {count}");
     }
 
     // --snip--

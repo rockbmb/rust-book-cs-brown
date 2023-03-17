@@ -101,7 +101,7 @@ fn main3() {
 }
 
 /// Exercise at the end of 15.6
-fn main() {
+fn main4() {
     let r1_printer =
         |s, r| println!("{}: {} {}", s, Rc::strong_count(r), Rc::weak_count(r));
 
@@ -122,4 +122,35 @@ fn main() {
 
     println!("{} {}", Rc::strong_count(&r1), Rc::weak_count(&r1));
 
+}
+
+fn main() {
+    let r1_printer =
+        |s, r| println!("{}: {} {}", s, Rc::strong_count(r), Rc::weak_count(r));
+
+    let r1 = Rc::new(0);
+    r1_printer("FIRST", &r1);
+
+    let r4 = {
+        let r2 = Rc::clone(&r1);
+        r1_printer("SECOND", &r1);
+        let x = Rc::downgrade(&r2);
+        r1_printer("SECOND PRIME", &r1);
+        x
+    };
+
+    // Consider r4 and r5: one created directly from r1, and the other
+    // from a strong reference to r1.
+    // They both count toward weak references to r1, which means that
+    // after the strong reference r5 points to goes out of scope
+    // - r2 below -, it will be transferred to what r2 pointed to,
+    // which was r1.
+    let r5 = {
+        let r2 = Rc::clone(&r1);
+        r1_printer("THIRD", &r1);
+        let x = Rc::downgrade(&r1);
+        r1_printer("THIRD PRIME", &r1);
+        x
+    };
+    println!("{} {}", Rc::strong_count(&r1), Rc::weak_count(&r1));
 }

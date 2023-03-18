@@ -6,7 +6,7 @@ fn main() {
 }
 */
 
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
 use std::thread;
 
 /*
@@ -124,12 +124,17 @@ fn main() {
     let (tx, rx) = mpsc::channel();
     let threads = 5;
 
+    // In order to share these vectors between threads, and not have to
+    // declare them repeatedly inside the thread's closure, they must be
+    // wrapped in an `Arc`.
+    let nums = Arc::new(vec![2, 3, 5, 7, 11]);
+    let multiples = Arc::new(vec![1, 2, 3, 4, 5]);
+
     for i in 0 .. threads {
         let tx1 = tx.clone();
+        let nums = nums.clone();
+        let multiples = multiples.clone();
         thread::spawn(move || {
-            let nums : Vec<i32> = vec![2, 3, 5, 7, 11];
-            let multiples = vec![1, 2, 3, 4, 5];
-
             let n = nums[i];
             let mults = multiples
                 .iter().map(|m| n * m).collect::<Vec<_>>();
@@ -140,6 +145,8 @@ fn main() {
             }
 
             //drop(tx1);
+            drop(nums);
+            drop(multiples);
         });
     }
 

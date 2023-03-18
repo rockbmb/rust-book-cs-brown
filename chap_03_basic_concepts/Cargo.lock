@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "chap_03_5_branches"
+name = "chap_03_basic_concepts"
 version = "0.1.0"

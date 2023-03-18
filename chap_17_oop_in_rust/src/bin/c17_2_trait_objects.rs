@@ -1,4 +1,5 @@
-use chap_17_oop_in_rust::{Button, Draw, Screen};
+use chap_17_oop_in_rust::gui as gui;
+use gui::{Button, Draw, Screen};
 
 // This type was implemented in the binary crate, outside of the library's
 // module defining `Draw`, to simulate a user creating a new type not part

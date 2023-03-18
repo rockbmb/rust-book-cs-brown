@@ -8,6 +8,42 @@ pub struct Post {
     content: String,
 }
 
+pub enum PostState {
+    Draft,
+    PendingReview,
+    Published
+}
+
+impl PostState {
+    pub fn is_published(&self) -> bool {
+        match self {
+            PostState::Draft | PostState::PendingReview => false,
+            PostState::Published => true
+        }
+    }
+
+    pub fn request_review(&self) -> Self {
+        match self {
+            PostState::Draft => PostState::PendingReview,
+            PostState::PendingReview => PostState::PendingReview,
+            PostState::Published => PostState::Published,
+        }
+    }
+
+    pub fn approve(&self) -> Self {
+        match self {
+            PostState::Draft => PostState::Draft,
+            PostState::PendingReview => PostState::Published,
+            PostState::Published => PostState::Published,
+        }
+    }
+}
+
+pub struct PostE {
+    state : PostState,
+    content : String,
+}
+
 impl Post {
     pub fn new() -> Post {
         Post {
@@ -58,6 +94,38 @@ impl Post {
             self.state = Some(s.approve())
         }
     }
+}
+
+impl PostE {
+    pub fn new() -> PostE {
+        PostE {
+            state: PostState::Draft,
+            content: String::new(),
+        }
+    }
+
+    pub fn add_text(&mut self, text: &str) {
+        self.content.push_str(text);
+    }
+
+    pub fn content(&self) -> &str {
+        if self.state.is_published() {
+            return &self.content;
+        } else {
+            return ""
+        }
+    }
+
+    pub fn request_review(&mut self) {
+        let st = self.state.request_review();
+        self.state = st
+    }
+
+    pub fn approve(&mut self) {
+        let st = self.state.approve();
+        self.state = st
+    }
+
 }
 
 trait State {

@@ -1,16 +1,20 @@
 pub struct Post {
-    state: Option<Box<dyn State>>,
     ///
     /// | Because the state field of Post is private, there is no way to create a
     /// | Post in any other state! In the Post::new function, we set the content
     /// | field to a new, empty String.
     ///
-    content: String,
+    state: Option<Box<dyn State>>,
+    pub content: String,
 }
 
 pub struct PostE {
     state : PostState,
-    content : String,
+    /// This field was made public so that tests to text addition while in
+    /// Draft states and otherwise could be written:
+    /// * if a post is not `Draft`, it will use the default implementation of
+    ///   `State`'s `content` method, which is always "".
+    pub content : String,
 }
 
 impl Post {
@@ -22,7 +26,9 @@ impl Post {
     }
 
     pub fn add_text(&mut self, text: &str) {
-        self.content.push_str(text);
+        if self.is_draft() {
+            self.content.push_str(text);
+        }
     }
 
     pub fn content(&self) -> &str {
@@ -264,7 +270,9 @@ impl PostE {
     }
 
     pub fn add_text(&mut self, text: &str) {
-        self.content.push_str(text);
+        if self.is_draft() {
+            self.content.push_str(text);
+        }
     }
 
     pub fn content(&self) -> &str {

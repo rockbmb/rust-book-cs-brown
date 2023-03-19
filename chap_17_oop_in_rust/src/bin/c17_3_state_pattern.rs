@@ -3,33 +3,42 @@ use blog::Post;
 
 fn main() {
     let mut post = Post::new();
-    let mut postE = PostE::new();
+    let mut post_e = PostE::new();
 
-    post.add_text("I ate a salad for lunch today");
-    postE.add_text("I ate a salad for lunch today");
+    let str = "I ate a salad for lunch today";
+    let next = ". It was very good.";
+
+    post.add_text(str);
+    post_e.add_text(str);
     assert_eq!("", post.content());
-    assert_eq!("", postE.content());
+    assert_eq!("", post_e.content());
+    assert_eq!(str, post.content);
+    assert_eq!(str, post_e.content);
 
     post.request_review();
-    postE.request_review();
+    post_e.request_review();
     assert_eq!("", post.content());
-    assert_eq!("", postE.content());
+    assert_eq!("", post_e.content());
+    post.add_text(next);
+    post_e.add_text(next);
+    assert_eq!(str, post.content);
+    assert_eq!(str, post_e.content);
 
     post.reject();
-    postE.reject();
+    post_e.reject();
     assert!(post.is_draft()); post.request_review();
-    assert!(postE.is_draft()); postE.request_review();
+    assert!(post_e.is_draft()); post_e.request_review();
 
     assert!(post.is_pending() && !post.is_scheduled());
-    assert!(postE.is_pending() && !postE.is_scheduled());
+    assert!(post_e.is_pending() && !post_e.is_scheduled());
     post.approve();
-    postE.approve();
+    post_e.approve();
 
     assert!(!post.is_pending() && post.is_scheduled());
-    assert!(!postE.is_pending() && postE.is_scheduled());
+    assert!(!post_e.is_pending() && post_e.is_scheduled());
     post.approve();
-    postE.approve();
+    post_e.approve();
 
     assert_eq!("I ate a salad for lunch today", post.content());
-    assert_eq!("I ate a salad for lunch today", postE.content());
+    assert_eq!("I ate a salad for lunch today", post_e.content());
 }

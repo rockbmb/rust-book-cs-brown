@@ -1,9 +1,9 @@
-use chap_17_oop_in_rust::blog::{self as blog};
-use chap_17_oop_in_rust::blog2::{self as blog2};
-use chap_17_oop_in_rust::blog3::{self as blog3};
-use blog::Post;
-use blog2::PostE;
-use blog3::*;
+use chap_17_oop_in_rust::blog_oop_st_obj::{self as blog_oop_st_obj};
+use chap_17_oop_in_rust::blog_enum::{self as blog_enum};
+use chap_17_oop_in_rust::blog_idiomatic_rust::{self as blog_idiomatic_rust};
+use blog_oop_st_obj::Post;
+use blog_enum::PostE;
+use blog_idiomatic_rust::*;
 
 fn main() {
     let mut post = Post::new();

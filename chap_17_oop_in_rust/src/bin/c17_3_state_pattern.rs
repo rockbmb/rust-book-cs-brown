@@ -15,6 +15,11 @@ fn main() {
     assert_eq!("", post.content());
     assert_eq!("", postE.content());
 
+    post.reject();
+    postE.reject();
+    assert!(post.is_draft()); post.request_review();
+    assert!(postE.is_draft()); postE.request_review();
+
     post.approve();
     postE.approve();
     assert_eq!("I ate a salad for lunch today", post.content());

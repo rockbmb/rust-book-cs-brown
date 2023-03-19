@@ -8,6 +8,7 @@ pub struct Post {
     content: String,
 }
 
+#[derive(PartialEq)]
 pub enum PostState {
     Draft,
     PendingReview,
@@ -34,6 +35,14 @@ impl PostState {
         match self {
             PostState::Draft => PostState::Draft,
             PostState::PendingReview => PostState::Published,
+            PostState::Published => PostState::Published,
+        }
+    }
+
+    pub fn reject(&self) -> Self {
+        match self {
+            PostState::Draft => PostState::Draft,
+            PostState::PendingReview => PostState::Draft,
             PostState::Published => PostState::Published,
         }
     }
@@ -94,6 +103,16 @@ impl Post {
             self.state = Some(s.approve())
         }
     }
+
+    pub fn reject(&mut self) {
+        if let Some(s) = self.state.take() {
+            self.state = Some(s.reject())
+        }
+    }
+
+    pub fn is_draft(&self) -> bool {
+        self.state.as_ref().unwrap().is_draft()
+    }
 }
 
 impl PostE {
@@ -117,15 +136,20 @@ impl PostE {
     }
 
     pub fn request_review(&mut self) {
-        let st = self.state.request_review();
-        self.state = st
+        self.state = self.state.request_review();
     }
 
     pub fn approve(&mut self) {
-        let st = self.state.approve();
-        self.state = st
+        self.state = self.state.approve();
     }
 
+    pub fn reject(&mut self) {
+        self.state = self.state.reject();
+    }
+
+    pub fn is_draft(&self) -> bool {
+        self.state == PostState::Draft
+    }
 }
 
 trait State {
@@ -133,6 +157,10 @@ trait State {
     fn approve(self: Box<Self>) -> Box<dyn State>;
     fn content<'a>(&self, _: &'a Post) -> &'a str {
         ""
+    }
+    fn reject(self: Box<Self>) -> Box<dyn State>;
+    fn is_draft(self: &Self) -> bool {
+        false
     }
 }
 
@@ -146,6 +174,14 @@ impl State for Draft {
     fn approve(self: Box<Self>) -> Box<dyn State> {
         self
     }
+
+    fn reject(self: Box<Self>) -> Box<dyn State> {
+        self
+    }
+
+    fn is_draft(self: &Draft) -> bool {
+        true
+    }
 }
 
 struct PendingReview {}
@@ -157,6 +193,10 @@ impl State for PendingReview {
 
     fn approve(self: Box<Self>) -> Box<dyn State> {
         Box::new(Published {})
+    }
+
+    fn reject(self: Box<Self>) -> Box<dyn State> {
+        Box::new(Draft {})
     }
 }
 
@@ -173,5 +213,9 @@ impl State for Published {
 
     fn content<'a>(&self, post: &'a Post) -> &'a str {
         &post.content
+    }
+
+    fn reject(self: Box<Self>) -> Box<dyn State> {
+        self
     }
 }

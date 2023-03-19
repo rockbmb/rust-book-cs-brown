@@ -8,46 +8,6 @@ pub struct Post {
     content: String,
 }
 
-#[derive(PartialEq)]
-pub enum PostState {
-    Draft,
-    PendingReview,
-    Published
-}
-
-impl PostState {
-    pub fn is_published(&self) -> bool {
-        match self {
-            PostState::Draft | PostState::PendingReview => false,
-            PostState::Published => true
-        }
-    }
-
-    pub fn request_review(&self) -> Self {
-        match self {
-            PostState::Draft => PostState::PendingReview,
-            PostState::PendingReview => PostState::PendingReview,
-            PostState::Published => PostState::Published,
-        }
-    }
-
-    pub fn approve(&self) -> Self {
-        match self {
-            PostState::Draft => PostState::Draft,
-            PostState::PendingReview => PostState::Published,
-            PostState::Published => PostState::Published,
-        }
-    }
-
-    pub fn reject(&self) -> Self {
-        match self {
-            PostState::Draft => PostState::Draft,
-            PostState::PendingReview => PostState::Draft,
-            PostState::Published => PostState::Published,
-        }
-    }
-}
-
 pub struct PostE {
     state : PostState,
     content : String,
@@ -113,6 +73,186 @@ impl Post {
     pub fn is_draft(&self) -> bool {
         self.state.as_ref().unwrap().is_draft()
     }
+
+    pub fn is_pending(&self) -> bool {
+        self.state.as_ref().unwrap().is_pending()
+    }
+
+    pub fn is_scheduled(&self) -> bool {
+        self.state.as_ref().unwrap().is_scheduled()
+    }
+}
+
+trait State {
+    fn request_review(self: Box<Self>) -> Box<dyn State>;
+    fn approve(self: Box<Self>) -> Box<dyn State>;
+    fn content<'a>(&self, _: &'a Post) -> &'a str {
+        ""
+    }
+    fn reject(self: Box<Self>) -> Box<dyn State>;
+
+    fn is_draft(self: &Self) -> bool {
+        false
+    }
+    fn is_pending(self: &Self) -> bool {
+        false
+    }
+    fn is_scheduled(self: &Self) -> bool {
+        false
+    }
+}
+
+#[derive(Debug)]
+struct Draft {}
+
+impl State for Draft {
+    fn request_review(self: Box<Self>) -> Box<dyn State> {
+        Box::new(PendingReview {})
+    }
+
+    fn approve(self: Box<Self>) -> Box<dyn State> {
+        self
+    }
+
+    fn reject(self: Box<Self>) -> Box<dyn State> {
+        self
+    }
+
+    fn is_draft(self: &Self) -> bool {
+        true
+    }
+}
+
+#[derive(Debug)]
+struct PendingReview {}
+
+impl State for PendingReview {
+    fn request_review(self: Box<Self>) -> Box<dyn State> {
+        self
+    }
+
+    fn approve(self: Box<Self>) -> Box<dyn State> {
+        Box::new(Scheduled {})
+    }
+
+    fn reject(self: Box<Self>) -> Box<dyn State> {
+        Box::new(Draft {})
+    }
+
+    fn is_pending(self: &Self) -> bool {
+        true 
+    }
+}
+
+#[derive(Debug)]
+struct Scheduled {}
+
+impl State for Scheduled {
+    fn request_review(self: Box<Self>) -> Box<dyn State> {
+        self
+    }
+
+    fn approve(self: Box<Self>) -> Box<dyn State> {
+        Box::new(Published {})
+    }
+
+    fn reject(self: Box<Self>) -> Box<dyn State> {
+        Box::new(PendingReview {})
+    }
+
+    fn is_scheduled(self: &Self) -> bool {
+        true
+    }
+}
+
+#[derive(Debug)]
+struct Published {}
+
+impl State for Published {
+    fn request_review(self: Box<Self>) -> Box<dyn State> {
+        self
+    }
+
+    fn approve(self: Box<Self>) -> Box<dyn State> {
+        self
+    }
+
+    fn content<'a>(&self, post: &'a Post) -> &'a str {
+        &post.content
+    }
+
+    fn reject(self: Box<Self>) -> Box<dyn State> {
+        self
+    }
+}
+
+//
+//
+//
+
+#[derive(PartialEq)]
+pub enum PostState {
+    Draft,
+    PendingReview,
+    Scheduled,
+    Published
+}
+
+impl PostState {
+    pub fn is_draft(&self) -> bool {
+        match self {
+            PostState::Draft => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_pending(&self) -> bool {
+        match self {
+            PostState::PendingReview => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_scheduled(&self) -> bool {
+        match self {
+            PostState::Scheduled => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_published(&self) -> bool {
+        match self {
+            PostState::Published => true,
+            _ => false,
+        }
+    }
+
+    pub fn request_review(&self) -> Self {
+        match self {
+            PostState::Draft => PostState::PendingReview,
+            PostState::PendingReview => PostState::PendingReview,
+            PostState::Scheduled => PostState::Scheduled,
+            PostState::Published => PostState::Published,
+        }
+    }
+
+    pub fn approve(&self) -> Self {
+        match self {
+            PostState::Draft => PostState::Draft,
+            PostState::PendingReview => PostState::Scheduled,
+            PostState::Scheduled => PostState::Published,
+            PostState::Published => PostState::Published,
+        }
+    }
+
+    pub fn reject(&self) -> Self {
+        match self {
+            PostState::Draft => PostState::Draft,
+            PostState::PendingReview => PostState::Draft,
+            PostState::Scheduled => PostState::PendingReview,
+            PostState::Published => PostState::Published,
+        }
+    }
 }
 
 impl PostE {
@@ -148,74 +288,14 @@ impl PostE {
     }
 
     pub fn is_draft(&self) -> bool {
-        self.state == PostState::Draft
-    }
-}
-
-trait State {
-    fn request_review(self: Box<Self>) -> Box<dyn State>;
-    fn approve(self: Box<Self>) -> Box<dyn State>;
-    fn content<'a>(&self, _: &'a Post) -> &'a str {
-        ""
-    }
-    fn reject(self: Box<Self>) -> Box<dyn State>;
-    fn is_draft(self: &Self) -> bool {
-        false
-    }
-}
-
-struct Draft {}
-
-impl State for Draft {
-    fn request_review(self: Box<Self>) -> Box<dyn State> {
-        Box::new(PendingReview {})
+        self.state.is_draft()
     }
 
-    fn approve(self: Box<Self>) -> Box<dyn State> {
-        self
+    pub fn is_pending(&self) -> bool {
+        self.state.is_pending()
     }
 
-    fn reject(self: Box<Self>) -> Box<dyn State> {
-        self
-    }
-
-    fn is_draft(self: &Draft) -> bool {
-        true
-    }
-}
-
-struct PendingReview {}
-
-impl State for PendingReview {
-    fn request_review(self: Box<Self>) -> Box<dyn State> {
-        self
-    }
-
-    fn approve(self: Box<Self>) -> Box<dyn State> {
-        Box::new(Published {})
-    }
-
-    fn reject(self: Box<Self>) -> Box<dyn State> {
-        Box::new(Draft {})
-    }
-}
-
-struct Published {}
-
-impl State for Published {
-    fn request_review(self: Box<Self>) -> Box<dyn State> {
-        self
-    }
-
-    fn approve(self: Box<Self>) -> Box<dyn State> {
-        self
-    }
-
-    fn content<'a>(&self, post: &'a Post) -> &'a str {
-        &post.content
-    }
-
-    fn reject(self: Box<Self>) -> Box<dyn State> {
-        self
+    pub fn is_scheduled(&self) -> bool {
+        self.state.is_scheduled()
     }
 }

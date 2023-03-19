@@ -20,8 +20,16 @@ fn main() {
     assert!(post.is_draft()); post.request_review();
     assert!(postE.is_draft()); postE.request_review();
 
+    assert!(post.is_pending() && !post.is_scheduled());
+    assert!(postE.is_pending() && !postE.is_scheduled());
     post.approve();
     postE.approve();
+
+    assert!(!post.is_pending() && post.is_scheduled());
+    assert!(!postE.is_pending() && postE.is_scheduled());
+    post.approve();
+    postE.approve();
+
     assert_eq!("I ate a salad for lunch today", post.content());
     assert_eq!("I ate a salad for lunch today", postE.content());
 }

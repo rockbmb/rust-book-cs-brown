@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "chap_08_2_strings"
+name = "chap_08_common_collections"
 version = "0.1.0"

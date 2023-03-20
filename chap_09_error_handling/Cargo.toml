@@ -1,5 +1,5 @@
 [package]
-name = "chap_09_2_result"
+name = "chap_09_error_handling"
 version = "0.1.0"
 edition = "2021"
 

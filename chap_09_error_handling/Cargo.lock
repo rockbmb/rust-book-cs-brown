@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "chap_09_3_when_to_panic"
+name = "chap_09_error_handling"
 version = "0.1.0"

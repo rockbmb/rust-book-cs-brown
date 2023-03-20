@@ -1,5 +1,5 @@
 [package]
-name = "chap_10_3_lifetimes"
+name = "chap_10_generics_traits_lifetimes"
 version = "0.1.0"
 edition = "2021"
 

@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "chap_13_2_iterators"
+name = "chap_13_iterators_closures"
 version = "0.1.0"

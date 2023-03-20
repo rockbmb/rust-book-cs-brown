@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "chap_04_1_slices"
+name = "chap_04_understanding_ownership"
 version = "0.1.0"

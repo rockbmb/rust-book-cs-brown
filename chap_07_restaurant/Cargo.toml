@@ -1,5 +1,5 @@
 [package]
-name = "chap_07_2_restaurant"
+name = "chap_07_restaurant"
 version = "0.1.0"
 edition = "2021"
 

@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "chap_06_1_enums"
+name = "chap_06_enums_pats"
 version = "0.1.0"

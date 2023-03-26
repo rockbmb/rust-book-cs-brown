@@ -1,0 +1,12 @@
+[package]
+name = "c19_unsafe_and_macros"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+# Required to create Rust FFI
+[lib]
+crate-type =["cdylib"]
+
+[dependencies]

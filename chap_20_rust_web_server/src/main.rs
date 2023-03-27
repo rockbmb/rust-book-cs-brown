@@ -26,25 +26,27 @@ fn handle_connection(mut stream : TcpStream) {
     // BufReader adds buffering by managing calls to the std::io::Read trait
     // methods for us.
     let buf_reader = BufReader::new(&mut stream);
+    let request_line = buf_reader.lines().next().unwrap().unwrap();
 
-    // We indicate that we want to collect these lines in a vector by adding the
-    // Vec<_> type annotation.
-    let http_request : Vec<_> = buf_reader
-        // BufReader implements the std::io::BufRead trait, which provides the
-        // lines method. The lines method returns an iterator of Result<String,
-        // std::io::Error> by splitting the stream of data whenever it sees a
-        // newline byte.
-        .lines()
-        .map(|result| result.unwrap())
-        .take_while(|line| !line.is_empty())
-        .collect();
+    if request_line == "GET / HTTP/1.1" {
+        let status_line = "HTTP/1.1 200 OK";
+        let contents = fs::read_to_string("hello.html").unwrap();
+        let length = contents.len();
 
-    let status_line = "HTTP/1.1 200 OK";
-    let contents = fs::read_to_string("hello.html").unwrap();
-    let length = contents.len();
+        let response =
+            format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}"
+        );
 
-    let response =
-        format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+        stream.write_all(response.as_bytes()).unwrap();
+    } else {
+        let status_line = "HTTP/1.1 404 NOT FOUND";
+        let contents = fs::read_to_string("404.html").unwrap();
+        let length = contents.len();
 
-    stream.write_all(response.as_bytes()).unwrap();
+        let response =
+            format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}"
+        );
+
+        stream.write_all(response.as_bytes()).unwrap();
+    }
 }

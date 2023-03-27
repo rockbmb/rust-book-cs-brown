@@ -35,26 +35,16 @@ fn handle_connection(mut stream : TcpStream) {
         // std::io::Error> by splitting the stream of data whenever it sees a
         // newline byte.
         .lines()
-        // To get each String, we map and unwrap each Result. The Result might
-        // be an error if the data isn’t valid UTF-8 or if there was a problem
-        // reading from the stream
         .map(|result| result.unwrap())
-        // The browser signals the end of an HTTP request by sending two newline
-        // characters in a row, so to get one request from the stream, we take
-        // lines until we get a line that is the empty string.
         .take_while(|line| !line.is_empty())
         .collect();
 
-    let status_line = "HTTP/1.1 200 OK\r\n\r\n";
+    let status_line = "HTTP/1.1 200 OK";
     let contents = fs::read_to_string("hello.html").unwrap();
     let length = contents.len();
 
-    let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+    let response =
+        format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
 
-    // Then we call as_bytes on our response to convert the string data to
-    // bytes. The write_all method on stream takes a &[u8] and sends those bytes
-    // directly down the connection. Because the write_all operation could fail,
-    // we use unwrap on any error result as before. Again, in a real application
-    // you would add error handling here.
     stream.write_all(response.as_bytes()).unwrap();
 }

@@ -1,4 +1,8 @@
-pub struct ThreadPool;
+use std::thread;
+
+pub struct ThreadPool {
+    threads: Vec<thread::JoinHandle<()>>,
+}
 
 #[derive(Debug)]
 pub enum PoolCreationError {
@@ -6,6 +10,16 @@ pub enum PoolCreationError {
 }
 
 impl ThreadPool {
+    fn creation_helper(size : usize) -> ThreadPool {
+        let mut threads = Vec::with_capacity(size);
+
+        for _ in 0..size {
+            // create some threads and store them in the vector
+        }
+
+        ThreadPool { threads }
+    }
+
     /// Create a new ThreadPool.
     ///
     /// The size is the number of threads in the pool.
@@ -13,12 +27,29 @@ impl ThreadPool {
     /// # Panics
     ///
     /// The `new` function will panic if the size is zero.
+    pub fn new(size: usize) -> ThreadPool {
+        assert!(size > 0);
+
+        Self::creation_helper(size)
+    }
+
+    /// Create a new ThreadPool.
+    ///
+    /// The size is the number of threads in the pool.
+    ///
+    /// * If the user selects an invalid thread pool size, the `Err` variant
+    ///   is returned;
+    /// * otherwise, a thread pool with the specified size is returned via `Ok`
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn build(size: usize) -> Result<ThreadPool, PoolCreationError> {
         if size == 0 {
             return Err(PoolCreationError::ZeroThreadPoolCreationError)
         }
 
-        Ok(ThreadPool)
+        Ok(Self::creation_helper(size))
     }
 
     /*

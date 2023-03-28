@@ -1,7 +1,25 @@
-use std::thread;
+use std::{sync::mpsc, thread};
 
-pub struct ThreadPool {
-    threads: Vec<thread::JoinHandle<()>>,
+pub struct Worker {
+    worker_id : usize,
+    thread_handle : thread::JoinHandle<()>
+}
+
+impl Worker {
+    pub fn new(worker_id: usize) -> Worker {
+        // TODO
+        // Note: If the operating system can’t create a thread because there
+        // aren’t enough system resources, thread::spawn will panic. That will
+        // cause our whole server to panic, even though the creation of some
+        // threads might succeed.
+        //
+        // For simplicity’s sake, this behavior is fine, but in a production
+        // thread pool implementation, you’d likely want to use
+        // std::thread::Builder and its spawn method that returns Result
+        // instead.
+        let thread_handle = thread::spawn(|| {});
+        Worker { worker_id, thread_handle}
+    }
 }
 
 #[derive(Debug)]
@@ -9,15 +27,19 @@ pub enum PoolCreationError {
     ZeroThreadPoolCreationError
 }
 
+pub struct ThreadPool {
+    workers: Vec<Worker>,
+}
+
 impl ThreadPool {
     fn creation_helper(size : usize) -> ThreadPool {
-        let mut threads = Vec::with_capacity(size);
+        let mut workers = Vec::with_capacity(size);
 
-        for _ in 0..size {
-            // create some threads and store them in the vector
+        for n in 0..size {
+            workers.push(Worker::new(n));
         }
 
-        ThreadPool { threads }
+        ThreadPool { workers }
     }
 
     /// Create a new ThreadPool.

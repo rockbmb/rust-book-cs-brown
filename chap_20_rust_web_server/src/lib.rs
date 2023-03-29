@@ -1,60 +1,51 @@
-use std::{sync::mpsc, thread};
+use std::{
+    io,
+    sync::{mpsc, Arc, Mutex, PoisonError},
+    thread
+};
 
 pub struct Worker {
     worker_id : usize,
-    thread_handle : thread::JoinHandle<()>
-}
-
-impl Worker {
-    pub fn new(worker_id: usize) -> Worker {
-        // TODO
-        // Note: If the operating system can’t create a thread because there
-        // aren’t enough system resources, thread::spawn will panic. That will
-        // cause our whole server to panic, even though the creation of some
-        // threads might succeed.
-        //
-        // For simplicity’s sake, this behavior is fine, but in a production
-        // thread pool implementation, you’d likely want to use
-        // std::thread::Builder and its spawn method that returns Result
-        // instead.
-        let thread_handle = thread::spawn(|| {});
-        Worker { worker_id, thread_handle}
-    }
+    thread_handle : thread::JoinHandle<()>,
 }
 
 #[derive(Debug)]
+pub enum WorkerCreationError {
+    JobQueueReadError,
+    ThreadCreationError(io::Error)
+}
+
+impl Worker {
+    fn build(worker_id: usize, job_receiver : Arc<Mutex<mpsc::Receiver<Job>>>) -> Result<Worker, WorkerCreationError> {
+        let builder = thread::Builder::new().name(format!("Worker-{}", worker_id));
+
+        let thread_res = builder.spawn(move || loop {
+            let job = job_receiver.lock().unwrap().recv().unwrap();
+            println!("Worker {worker_id} got a job; executing");
+            job()
+        });
+
+        match thread_res {
+            Ok(thread_handle) => Ok (Worker { worker_id, thread_handle }),
+            Err(err) => Err(WorkerCreationError::ThreadCreationError(err)),
+        }
+    }
+}
+
+type Job = Box<dyn FnOnce() + Send + 'static>;
+
+#[derive(Debug)]
 pub enum PoolCreationError {
-    ZeroThreadPoolCreationError
+    ZeroThreadPoolCreationError,
+    WorkerError(WorkerCreationError)
 }
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
+    job_sender : mpsc::Sender<Job>,
 }
 
 impl ThreadPool {
-    fn creation_helper(size : usize) -> ThreadPool {
-        let mut workers = Vec::with_capacity(size);
-
-        for n in 0..size {
-            workers.push(Worker::new(n));
-        }
-
-        ThreadPool { workers }
-    }
-
-    /// Create a new ThreadPool.
-    ///
-    /// The size is the number of threads in the pool.
-    ///
-    /// # Panics
-    ///
-    /// The `new` function will panic if the size is zero.
-    pub fn new(size: usize) -> ThreadPool {
-        assert!(size > 0);
-
-        Self::creation_helper(size)
-    }
-
     /// Create a new ThreadPool.
     ///
     /// The size is the number of threads in the pool.
@@ -66,12 +57,24 @@ impl ThreadPool {
     /// # Panics
     ///
     /// This function does not panic.
-    pub fn build(size: usize) -> Result<ThreadPool, PoolCreationError> {
+    pub fn build(size : usize) -> Result<ThreadPool, PoolCreationError> {
         if size == 0 {
             return Err(PoolCreationError::ZeroThreadPoolCreationError)
         }
 
-        Ok(Self::creation_helper(size))
+        let (job_sender, job_receiver) = mpsc::channel();
+        let job_receiver = Arc::new(Mutex::new(job_receiver));
+        let mut workers = Vec::with_capacity(size);
+
+        for n in 0..size {
+            let worker_res = Worker::build(n, Arc::clone(&job_receiver));
+            match worker_res {
+                Ok(worker) => workers.push(worker),
+                Err(worker_err) => return Err(PoolCreationError::WorkerError(worker_err))
+            }
+        }
+
+        Ok(ThreadPool { workers, job_sender })
     }
 
     /*
@@ -86,12 +89,14 @@ impl ThreadPool {
     // We can be further confident that FnOnce is the trait we want to use
     // because the thread for running a request will only execute that request’s
     // closure one time, which matches the Once in FnOnce.
-    pub fn execute<F>(&self, f : F)
+    pub fn execute<F>(&self, f : F) -> Result<(), mpsc::SendError<Job>>
     where
         // We still use the () after FnOnce because this FnOnce represents a
         // closure that takes no parameters and returns the unit type ()
         F : FnOnce() + Send + 'static
     {
+        let job = Box::new(f);
 
+        self.job_sender.send(job)
     }
 }

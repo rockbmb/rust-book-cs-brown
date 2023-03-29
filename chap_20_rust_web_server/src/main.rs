@@ -18,14 +18,17 @@ fn main() {
     //
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
 
+    // Desired API:
+    // Also, ideally we don't create a thread pool with every new request,
+    // causing the old one to dropped with the every iteration of the loop below,
+    // and then have to fix cryptic `Recv/PoisonError` problems :)
+    let pool = ThreadPool::build(4).unwrap_or_else(|err| {
+        eprintln!("main: Problem creating the server's threadpool: {:?}", err);
+        process::exit(1);
+    });
+
     for stream in listener.incoming() {
         let stream = stream.unwrap();
-        // Desired API:
-        let pool = ThreadPool::build(4).unwrap_or_else(|err| {
-            eprintln!("main: Problem creating the server's threadpool: {:?}", err);
-            process::exit(1);
-        });
-
         /*
         How the code would look if we had opted for the naive technique of spawning
         a unique thread per connection request, unbound both in the sense of each thread
@@ -37,10 +40,15 @@ fn main() {
         });
         */
 
-        // Desired API:
-        pool.execute(|| {
+        let execution_res = pool.execute(|| {
             handle_connection(stream);
         });
+
+        match execution_res {
+            Err(err) =>
+                eprintln!("main: problem sending job to pool; {:?}", err),
+            _ => {}
+        }
     }
 }
 

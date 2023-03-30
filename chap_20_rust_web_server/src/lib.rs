@@ -14,8 +14,38 @@ pub enum WorkerError {
     ThreadCreationError(io::Error)
 }
 
-fn worker_func(worker_id : usize, job_receiver : Arc<Mutex<mpsc::Receiver<Job>>>) {
-    
+/// Helper used to contain the closure each worker thread is spawned with.
+///
+/// Having so much code inline makes it hard to understand what is part of
+/// `Worker::build`, and what is the thread's spawning closure.
+fn worker_func(id : usize, job_receiver : Arc<Mutex<mpsc::Receiver<Job>>>) {
+    loop {
+        // IMPORTANT
+        // The `.lock()` must be immediately followed by `.unwrap()`, or sequential behavior will
+        // be observable.
+        //
+        // This is because there is no `.unlock()` method - the lock is held as long as the
+        // corresponding `MutexGuard`'s lifetim:
+        // * in the below case, it starts and ends in this line, so it is released
+        //   as soon as the line is executed.
+        // * in the case where `match job_receiver.lock() { ... }` to handle possible `PoisonError`s,
+        //   the lock will be held for much longer than expected! - possibly until after the thread
+        //   has finished running its `job()`.
+        let msg = job_receiver.lock().unwrap().recv();
+        match msg {
+            Err(_) => {
+                eprintln!(
+                    "Worker thread {} disconnected due to closure of job queue; shutting down.",
+                    id,
+                );
+                break;
+            }
+            Ok(job) => {
+                println!("Worker {id} got a job; executing");
+                job();
+            }
+        }
+    }
 }
 
 impl Worker {
@@ -26,49 +56,20 @@ impl Worker {
     ///
     /// # Panics
     ///
-    /// This function never panics.
+    /// This function doesn't panic.
     fn build(id: usize, job_receiver : Arc<Mutex<mpsc::Receiver<Job>>>) -> Result<Worker, WorkerError> {
         let builder = thread::Builder::new().name(format!("Worker-{}", id));
 
         let thread_res = builder
-            .spawn(move || loop {
-                //let receiver_guard = job_receiver.lock();
-/*                 let receiver = match receiver_guard {
-                    Err(err) => {
-                        eprintln!(
-                            "Worker thread {} failed to acquire lock on job queue. Error: {:?}",
-                            worker_id,
-                            err
-                        );
-                        continue;
-                    },
-                    Ok(r) => r,
-                }; */
-                let msg = job_receiver.lock().unwrap().recv();
-                match msg {
-                    Err(_) => {
-                        eprintln!(
-                            "Worker thread {} disconnected due to closure of job queue; shutting down.",
-                            id,
-                            );
-                            break;
-                    }
-                    Ok(job) => {
-                        println!("Worker {id} got a job; executing");
-                        job();
-                    }
-                }
-            });
+            .spawn(move || worker_func(id, job_receiver));
 
-        let res = match thread_res {
+        match thread_res {
             Ok(thread_handle) => {
                 let thread_handle = Some(thread_handle);
                 Ok (Worker { id, handle: thread_handle })
             },
             Err(err) => Err(WorkerError::ThreadCreationError(err)),
-        };
-
-        res
+        }
     }
 }
 
@@ -105,13 +106,15 @@ impl ThreadPool {
         }
 
         let (job_sender, job_receiver) = mpsc::channel();
-
         let job_receiver = Arc::new(Mutex::new(job_receiver));
-
         let mut workers = Vec::with_capacity(size);
 
         for n in 0..size {
-            let worker_res = Worker::build(n, Arc::clone(&job_receiver));
+            let worker_res = Worker::build(
+                n,
+                Arc::clone(&job_receiver)
+            );
+            // If even one of the workers could not be created, fail and exit early.
             match worker_res {
                 Ok(worker) => workers.push(worker),
                 Err(w_err) => return Err(ThreadPoolError::WorkerError(w_err))
@@ -152,6 +155,10 @@ impl ThreadPool {
 
 impl Drop for ThreadPool {
     fn drop(&mut self) {
+        // The sending half of the channel, residing in the main thread,
+        // is dropped, so that the worker threads try to read from their
+        // end of the channel and get a `ReceiveError`, they'll know it is
+        // time to shut themselves down.
         std::mem::drop(self.job_sender.take());
 
         for worker in &mut self.workers {

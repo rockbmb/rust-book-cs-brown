@@ -1,6 +1,6 @@
 use std::{
     fs,
-    io::{prelude::*, BufReader},
+    io::prelude::*,
     net::{TcpListener, TcpStream},
     process,
     thread,
@@ -15,8 +15,10 @@ fn main() {
     //
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
 
-    // Desired API:
-    // Also, ideally we don't create a thread pool with every new request,
+    // The below was left inside the `for` loop by mistake, which caused
+    // many problems.
+    //
+    // Ideally we don't create a thread pool with every new request,
     // causing the old one to dropped with the every iteration of the loop below,
     // and then have to fix cryptic `Recv/PoisonError` problems :)
     let pool = ThreadPool::build(4).unwrap_or_else(|err| {
@@ -24,7 +26,9 @@ fn main() {
         process::exit(1);
     });
 
-    for stream in listener.incoming() {
+    // The `take(3)` is to simulated a server being shutdown while it is
+    // serving requests, to test graceful termination. Remove it if not needed.
+    for stream in listener.incoming().take(3) {
         let stream = stream.unwrap();
 
         let execution_res = pool.execute(|| {
@@ -57,9 +61,11 @@ fn handle_connection(mut stream : TcpStream) {
 
     let contents = fs::read_to_string(filename).unwrap();
 
-    let length = contents.len();
     let response = format!(
-        "{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}"
+        "{}\r\nContent-Length: {}\r\n\r\n{}",
+        status_line,
+        contents.len(),
+        contents
     );
 
     stream.write_all(response.as_bytes()).unwrap();

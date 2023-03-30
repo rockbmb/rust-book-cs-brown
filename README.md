@@ -12,3 +12,9 @@ appropriately identified; its contents are the result of me following the book a
 
 Some chapters, like 2, 12, and 20, leave to the reader the task of implementing small
 practical projects, which I will try to do in their entirety.
+
+### `minigrep` (Chapter 12)
+
+* Run `cargo test` to verify the executable respects the case-insensitiveness flag
+* Run `cargo run -- to poem.txt` to test it on the book's example file
+* Run `cargo run 2> error.txt` to see that the executable prints errors to STDERR correctly

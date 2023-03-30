@@ -1,0 +1,3 @@
+    Finished dev [unoptimized + debuginfo] target(s) in 0.00s
+     Running `target/debug/chap_12_minigrep`
+Problem parsing arguments: Didn't get a query string

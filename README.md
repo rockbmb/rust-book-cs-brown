@@ -18,3 +18,13 @@ practical projects, which I will try to do in their entirety.
 * Run `cargo test` to verify the executable respects the case-insensitiveness flag
 * Run `cargo run -- to poem.txt` to test it on the book's example file
 * Run `cargo run 2> error.txt` to see that the executable prints errors to STDERR correctly
+
+### Mini Rust Web Server (Chapter 20)
+
+* Run `cargo run` to start the server, and then:
+    - Access `127.0.0.1:7878` in a browser for the regular HTML being served
+    - Access `127.0.0.1:7878/{anything}` for the HTML served in case of error
+    - Access `127.0.0.1:7878/sleep` for a page equal to the first, but only served after a 5 second delay
+
+To check the server thread pool's concurrent behavior, duplicate a `127.0.0.1:7878/sleep` tab while checking
+`STDOUT`.

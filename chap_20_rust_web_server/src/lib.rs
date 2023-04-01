@@ -1,9 +1,20 @@
+//! # Mini Web Server using Rust
+//!
+//! This crate is an implementation of the [Rust book's](https://rust-book.cs.brown.edu/ch20-00-final-project-a-web-server.html)
+//! final project, a concurrent web server that serves simple requests with basic HTML.
+//!
+//! It showcases some common Rust techniques such as `Arc + Mutex`, `mpsc::channel`,
+//! and shared ownership in a (thread) concurrency setting.
+
 use std::{
     io,
     sync::{mpsc, Arc, Mutex},
     thread
 };
 
+/// A `ThreadPool`'s individual worker.
+///
+/// Each is assigned a `usize` ID, and the handle of the spawned thread assigned to it.
 pub struct Worker {
     id : usize,
     handle : Option<thread::JoinHandle<()>>,
@@ -42,7 +53,16 @@ fn worker_func(id : usize, job_receiver : Arc<Mutex<mpsc::Receiver<Job>>>) {
             }
             Ok(job) => {
                 println!("Worker {id} got a job; executing");
-                job();
+                let job_result = job();
+                match job_result {
+                    Err(err) => eprintln!(
+                        "Worker {id} failed a job with error: {:?}",
+                        err
+                    ),
+                    Ok(_) => println!(
+                        "Worker {id} successfully completed a job."
+                    )
+                }
             }
         }
     }
@@ -73,7 +93,12 @@ impl Worker {
     }
 }
 
-type Job = Box<dyn FnOnce() + Send + 'static>;
+/// Type of closures that will be sent by the main server thread to
+/// its child worker threads, reprenting the computation it wishes them to perform.
+///
+/// Having an explicit `io::Result` return value is not needed if the result is simply
+/// `unwrap`ped, but it seems like a good exercise to do this.
+type Job = Box<dyn FnOnce() -> io::Result<()> + Send + 'static>;
 
 #[derive(Debug)]
 pub enum ThreadPoolError {
@@ -133,14 +158,19 @@ impl ThreadPool {
         F: Send + 'static,
         T: Send + 'static,
     */
-    // We can be further confident that FnOnce is the trait we want to use
-    // because the thread for running a request will only execute that request’s
-    // closure one time, which matches the Once in FnOnce.
+
+    /// This method is used to request the `ThreadPool` to assign the given task
+    /// to one of its threads, FCFS via the `mpsc` channel whose reading end each thread
+    /// has access to.
+    ///
+    /// We can be further confident that FnOnce is the trait we want to use in the job's type
+    /// because the thread for running a request will only execute that request’s
+    /// closure one time, which matches the Once in FnOnce.
     pub fn execute<F>(&self, f : F) -> Result<(), ThreadPoolError>
     where
         // We still use the () after FnOnce because this FnOnce represents a
         // closure that takes no parameters and returns the unit type ()
-        F : FnOnce() + Send + 'static
+        F : FnOnce() -> io::Result<()> + Send + 'static
     {
         let job = Box::new(f);
 
@@ -165,7 +195,26 @@ impl Drop for ThreadPool {
             println!("Shutting down worker {}", worker.id);
 
             if let Some(handle) = worker.handle.take() {
-                handle.join().unwrap();
+                let this_id = thread::current().id();
+                let thread_id = handle.thread().id(); 
+                match handle.join() {
+                    Err(err) => {
+                        eprintln!(
+                            "impl Drop for ThreadPool: thread {:?} failed to join on thread {:?}; error: {:?}",
+                            this_id,
+                            thread_id,
+                            err
+                        )
+                    },
+                    Ok(val) => {
+                        println!(
+                            "impl Drop for ThreadPool: thread {:?} successfully joined thread {:?} with result {:?}",
+                            this_id,
+                            thread_id,
+                            val
+                        )
+                    }
+                }
             }
         }
     }

@@ -13,13 +13,19 @@ appropriately identified; its contents are the result of me following the book a
 Some chapters, like 2, 12, and 20, leave to the reader the task of implementing small
 practical projects, which I will try to do in their entirety.
 
-### `minigrep` (Chapter 12)
+### `minigrep` ([Chapter 12](https://rust-book.cs.brown.edu/ch12-00-an-io-project.html))
+
+Chapter 12 presents an extremely simple project for a `grep` that does not recurse directories,
+and only searches the file specified as argument.
 
 * Run `cargo test` to verify the executable respects the case-insensitiveness flag
 * Run `cargo run -- to poem.txt` to test it on the book's example file
 * Run `cargo run 2> error.txt` to see that the executable prints errors to STDERR correctly
 
-### Mini Rust Web Server (Chapter 20)
+### Mini Rust Web Server ([Chapter 20](https://rust-book.cs.brown.edu/ch20-00-final-project-a-web-server.html))
+
+In Chapter 20, a very simple web server running on `localhost` is built. It is capable of serving
+concurrent requests, using a thread pool. The Rust `async` book does the same with `async/await`.
 
 * Run `cargo run` to start the server, and then:
     - Access `127.0.0.1:7878` in a browser for the regular HTML being served

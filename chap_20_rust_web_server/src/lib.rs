@@ -9,27 +9,27 @@
 use std::{
     io,
     sync::{mpsc, Arc, Mutex},
-    thread
+    thread,
 };
 
 /// A `ThreadPool`'s individual worker.
 ///
 /// Each is assigned a `usize` ID, and the handle of the spawned thread assigned to it.
 pub struct Worker {
-    id : usize,
-    handle : Option<thread::JoinHandle<()>>,
+    id: usize,
+    handle: Option<thread::JoinHandle<()>>,
 }
 
 #[derive(Debug)]
 pub enum WorkerError {
-    ThreadCreationError(io::Error)
+    ThreadCreationError(io::Error),
 }
 
 /// Helper used to contain the closure each worker thread is spawned with.
 ///
 /// Having so much code inline makes it hard to understand what is part of
 /// `Worker::build`, and what is the thread's spawning closure.
-fn worker_func(id : usize, job_receiver : Arc<Mutex<mpsc::Receiver<Job>>>) {
+fn worker_func(id: usize, job_receiver: Arc<Mutex<mpsc::Receiver<Job>>>) {
     loop {
         // IMPORTANT
         // The `.lock()` must be immediately followed by `.unwrap()`, or sequential behavior will
@@ -55,13 +55,8 @@ fn worker_func(id : usize, job_receiver : Arc<Mutex<mpsc::Receiver<Job>>>) {
                 println!("Worker {id} got a job; executing");
                 let job_result = job();
                 match job_result {
-                    Err(err) => eprintln!(
-                        "Worker {id} failed a job with error: {:?}",
-                        err
-                    ),
-                    Ok(_) => println!(
-                        "Worker {id} successfully completed a job."
-                    )
+                    Err(err) => eprintln!("Worker {id} failed a job with error: {:?}", err),
+                    Ok(_) => println!("Worker {id} successfully completed a job."),
                 }
             }
         }
@@ -77,17 +72,22 @@ impl Worker {
     /// # Panics
     ///
     /// This function doesn't panic.
-    fn build(id: usize, job_receiver : Arc<Mutex<mpsc::Receiver<Job>>>) -> Result<Worker, WorkerError> {
+    fn build(
+        id: usize,
+        job_receiver: Arc<Mutex<mpsc::Receiver<Job>>>,
+    ) -> Result<Worker, WorkerError> {
         let builder = thread::Builder::new().name(format!("Worker-{}", id));
 
-        let thread_res = builder
-            .spawn(move || worker_func(id, job_receiver));
+        let thread_res = builder.spawn(move || worker_func(id, job_receiver));
 
         match thread_res {
             Ok(thread_handle) => {
                 let thread_handle = Some(thread_handle);
-                Ok (Worker { id, handle: thread_handle })
-            },
+                Ok(Worker {
+                    id,
+                    handle: thread_handle,
+                })
+            }
             Err(err) => Err(WorkerError::ThreadCreationError(err)),
         }
     }
@@ -105,12 +105,12 @@ pub enum ThreadPoolError {
     ZeroThreadThreadPoolError,
     WorkerError(WorkerError),
     InexistentJobSenderError,
-    JobTransmissionError(mpsc::SendError<Job>)
+    JobTransmissionError(mpsc::SendError<Job>),
 }
 
 pub struct ThreadPool {
-    workers : Vec<Worker>,
-    job_sender : Option<mpsc::Sender<Job>>,
+    workers: Vec<Worker>,
+    job_sender: Option<mpsc::Sender<Job>>,
 }
 
 impl ThreadPool {
@@ -125,9 +125,9 @@ impl ThreadPool {
     /// # Panics
     ///
     /// This function does not panic.
-    pub fn build(size : usize) -> Result<ThreadPool, ThreadPoolError> {
+    pub fn build(size: usize) -> Result<ThreadPool, ThreadPoolError> {
         if size == 0 {
-            return Err(ThreadPoolError::ZeroThreadThreadPoolError)
+            return Err(ThreadPoolError::ZeroThreadThreadPoolError);
         }
 
         let (job_sender, job_receiver) = mpsc::channel();
@@ -135,18 +135,18 @@ impl ThreadPool {
         let mut workers = Vec::with_capacity(size);
 
         for n in 0..size {
-            let worker_res = Worker::build(
-                n,
-                Arc::clone(&job_receiver)
-            );
+            let worker_res = Worker::build(n, Arc::clone(&job_receiver));
             // If even one of the workers could not be created, fail and exit early.
             match worker_res {
                 Ok(worker) => workers.push(worker),
-                Err(w_err) => return Err(ThreadPoolError::WorkerError(w_err))
+                Err(w_err) => return Err(ThreadPoolError::WorkerError(w_err)),
             }
         }
 
-        Ok(ThreadPool { workers, job_sender: Some(job_sender) })
+        Ok(ThreadPool {
+            workers,
+            job_sender: Some(job_sender),
+        })
     }
 
     /*
@@ -166,21 +166,22 @@ impl ThreadPool {
     /// We can be further confident that FnOnce is the trait we want to use in the job's type
     /// because the thread for running a request will only execute that request’s
     /// closure one time, which matches the Once in FnOnce.
-    pub fn execute<F>(&self, f : F) -> Result<(), ThreadPoolError>
+    pub fn execute<F>(&self, f: F) -> Result<(), ThreadPoolError>
     where
         // We still use the () after FnOnce because this FnOnce represents a
         // closure that takes no parameters and returns the unit type ()
-        F : FnOnce() -> io::Result<()> + Send + 'static
+        F: FnOnce() -> io::Result<()> + Send + 'static,
     {
         let job = Box::new(f);
 
         let sender = match self.job_sender.as_ref() {
             None => return Err(ThreadPoolError::InexistentJobSenderError),
-            Some(s) => s
+            Some(s) => s,
         };
-        sender.send(job).map_err(ThreadPoolError::JobTransmissionError)
+        sender
+            .send(job)
+            .map_err(ThreadPoolError::JobTransmissionError)
     }
-
 }
 
 impl Drop for ThreadPool {
@@ -196,7 +197,7 @@ impl Drop for ThreadPool {
 
             if let Some(handle) = worker.handle.take() {
                 let this_id = thread::current().id();
-                let thread_id = handle.thread().id(); 
+                let thread_id = handle.thread().id();
                 match handle.join() {
                     Err(err) => {
                         eprintln!(
@@ -205,7 +206,7 @@ impl Drop for ThreadPool {
                             thread_id,
                             err
                         )
-                    },
+                    }
                     Ok(val) => {
                         println!(
                             "impl Drop for ThreadPool: thread {:?} successfully joined thread {:?} with result {:?}",

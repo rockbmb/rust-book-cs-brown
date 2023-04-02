@@ -1,21 +1,62 @@
+use chap_20_rust_web_server::ThreadPool;
 use std::{
     fs,
-    io::{prelude::*, self},
+    io::{self, prelude::*},
     net::{TcpListener, TcpStream},
-    process,
-    thread,
-    time::Duration
+    process, thread,
+    time::Duration,
 };
-use chap_20_rust_web_server::ThreadPool;
+
+use simplelog::{
+    ColorChoice, CombinedLogger, Config, LevelFilter, SharedLogger, TermLogger, TerminalMode,
+    WriteLogger,
+};
 
 fn main() {
+    // Init logging infrastructure. Just for curiosity's sake, we'll combine both
+    // terminal and file logging.
+    let log_file = fs::File::create("rust_web_server.log");
+    let term_logger = TermLogger::new(
+        LevelFilter::Warn,
+        Config::default(),
+        TerminalMode::Mixed,
+        ColorChoice::Auto,
+    );
+    let mut logger_vec: Vec<Box<dyn SharedLogger>> = vec![term_logger];
+    match log_file {
+        Err(err) => {
+            eprintln!("main: Could not create logging file! Error: {:?}", err);
+            eprintln!("main: Terminal-only logging will be attempted.");
+        }
+        Ok(file) => {
+            let file_logger = WriteLogger::new(
+                LevelFilter::Info,
+                Config::default(),
+                file
+            );
+            logger_vec.push(file_logger);
+        }
+    };
+    let log_init_res = CombinedLogger::init(logger_vec);
+    match log_init_res {
+        Err(err) =>  {
+            eprintln!("main: Could not init logging infrastructure! Error: {:?}", err);
+            eprintln!("main: Exiting");
+            std::process::exit(1);
+        }
+        Ok(_) => {}
+    }
+
     //
     // The function is called bind because, in networking, connecting to a port
     // to listen to is known as “binding to a port.”
     //
     let addr = "127.0.0.1:7878";
     let listener = TcpListener::bind(addr).unwrap_or_else(|err| {
-        eprintln!("main: Problem creating TCP listener on address \"{}\". Error: {:?}", addr, err);
+        eprintln!(
+            "main: Problem creating TCP listener on address \"{}\". Error: {:?}",
+            addr, err
+        );
         process::exit(1);
     });
 
@@ -37,23 +78,20 @@ fn main() {
             Err(err) => {
                 eprintln!("main: could not read from TCP stream. Error: {:?}", err);
                 process::exit(1);
-            },
-            Ok(s) => s
+            }
+            Ok(s) => s,
         };
 
-        let execution_res = pool.execute(|| {
-            handle_connection(stream)
-        });
+        let execution_res = pool.execute(|| handle_connection(stream));
 
         match execution_res {
-            Err(err) =>
-                eprintln!("main: problem sending job to pool; {:?}", err),
-            _ => continue
+            Err(err) => eprintln!("main: problem sending job to pool; {:?}", err),
+            _ => continue,
         }
     }
 }
 
-fn handle_connection(mut stream : TcpStream) -> io::Result<()> {
+fn handle_connection(mut stream: TcpStream) -> io::Result<()> {
     let mut buffer = [0; 1024];
     stream.read(&mut buffer)?;
 

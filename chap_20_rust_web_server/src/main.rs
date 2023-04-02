@@ -1,4 +1,5 @@
 use chap_20_rust_web_server::ThreadPool;
+use log::SetLoggerError;
 use std::{
     fs,
     io::{self, prelude::*},
@@ -12,10 +13,10 @@ use simplelog::{
     WriteLogger,
 };
 
-fn main() {
+fn init_logging_infrastructure(log_file_name : &str) -> Result<(), SetLoggerError>{
     // Init logging infrastructure. Just for curiosity's sake, we'll combine both
     // terminal and file logging.
-    let log_file = fs::File::create("rust_web_server.log");
+    let log_file = fs::File::create(log_file_name);
     let term_logger = TermLogger::new(
         LevelFilter::Warn,
         Config::default(),
@@ -37,8 +38,12 @@ fn main() {
             logger_vec.push(file_logger);
         }
     };
-    let log_init_res = CombinedLogger::init(logger_vec);
-    match log_init_res {
+    CombinedLogger::init(logger_vec)
+}
+
+fn main() {
+    let log_file_name = "rust_web_server.log";
+    match init_logging_infrastructure(log_file_name) {
         Err(err) =>  {
             eprintln!("main: Could not init logging infrastructure! Error: {:?}", err);
             eprintln!("main: Exiting");

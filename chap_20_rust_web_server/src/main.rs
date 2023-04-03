@@ -4,7 +4,7 @@ use std::{net::TcpListener, process};
 
 fn main() {
     // Setup logging infra
-    let log_file_name = "rust_web_server.log";
+    let log_file_name = Some("rust_web_server.log");
     util::init_logging_infrastructure(log_file_name).unwrap_or_else(|err| {
         eprintln!("Could not init logging infrastructure! Error: {:?}", err);
         eprintln!("Exiting");
@@ -53,4 +53,6 @@ fn main() {
             _ => continue,
         }
     }
+
+    drop(pool);
 }

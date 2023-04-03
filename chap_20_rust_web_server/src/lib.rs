@@ -75,7 +75,7 @@ impl Worker {
     /// # Panics
     ///
     /// This function doesn't panic.
-    fn build(
+    pub fn build(
         id: usize,
         job_receiver: Arc<Mutex<mpsc::Receiver<Job>>>,
     ) -> Result<Worker, WorkerError> {
@@ -189,6 +189,8 @@ impl ThreadPool {
 
 impl Drop for ThreadPool {
     fn drop(&mut self) {
+        simplelog::debug!("Running impl Drop for ThreadPool");
+
         // The sending half of the channel, residing in the main thread,
         // is dropped, so that the worker threads try to read from their
         // end of the channel and get a `ReceiveError`, they'll know it is
@@ -196,25 +198,25 @@ impl Drop for ThreadPool {
         std::mem::drop(self.job_sender.take());
 
         for worker in &mut self.workers {
-            simplelog::trace!("impl Drop for ThreadPool: shutting down worker {}", worker.id);
-
             if let Some(handle) = worker.handle.take() {
                 let this_id = thread::current().id();
                 let thread_id = handle.thread().id();
                 match handle.join() {
                     Err(err) => {
                         simplelog::error!(
-                            "impl Drop for ThreadPool: thread {:?} failed to join on thread {:?}; error: {:?}",
+                            "parent thread {:?} failed to join on thread {:?} from worker {:?}; error: {:?}",
                             this_id,
                             thread_id,
+                            worker.id,
                             err
                         )
                     }
                     Ok(val) => {
-                        simplelog::trace!(
-                            "impl Drop for ThreadPool: thread {:?} successfully joined thread {:?} with result {:?}",
+                        simplelog::debug!(
+                            "parent thread {:?} successfully joined thread {:?} from worker {:?} with result {:?}",
                             this_id,
                             thread_id,
+                            worker.id,
                             val
                         )
                     }

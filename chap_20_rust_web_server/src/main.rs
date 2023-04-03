@@ -1,54 +1,11 @@
-use chap_20_rust_web_server::ThreadPool;
-use log::SetLoggerError;
-use simplelog::{
-    ColorChoice, CombinedLogger, ConfigBuilder, LevelFilter, SharedLogger, TermLogger, TerminalMode,
-    WriteLogger,
-};
+use chap_20_rust_web_server::{ThreadPool, util};
 
-use std::{
-    fs,
-    io::{self, prelude::*},
-    net::{TcpListener, TcpStream},
-    process, thread,
-    time::Duration,
-};
-
-fn init_logging_infrastructure(log_file_name : &str) -> Result<(), SetLoggerError>{
-    // Init logging infrastructure. Just for curiosity's sake, we'll combine both
-    // terminal and file logging.
-    let log_file = fs::File::create(log_file_name);
-    let config = ConfigBuilder::new()
-        // This enables source-code location in logging message of any level
-        .set_location_level(LevelFilter::Error)
-        .build();
-    let term_logger = TermLogger::new(
-        // This is the field used to control the granularity of logs shown in the terminal.
-        LevelFilter::Info,
-        config.clone(),
-        TerminalMode::Mixed,
-        ColorChoice::Auto,
-    );
-    let mut logger_vec: Vec<Box<dyn SharedLogger>> = vec![term_logger];
-    match log_file {
-        Err(err) => {
-            eprintln!("main: Could not create logging file! Error: {:?}", err);
-            eprintln!("main: Terminal-only logging will be attempted.");
-        }
-        Ok(file) => {
-            let file_logger = WriteLogger::new(
-                LevelFilter::Info,
-                config,
-                file
-            );
-            logger_vec.push(file_logger);
-        }
-    };
-    CombinedLogger::init(logger_vec)
-}
+use std::{net::TcpListener, process};
 
 fn main() {
+    // Setup logging infra
     let log_file_name = "rust_web_server.log";
-    init_logging_infrastructure(log_file_name).unwrap_or_else(|err| {
+    util::init_logging_infrastructure(log_file_name).unwrap_or_else(|err| {
         eprintln!("Could not init logging infrastructure! Error: {:?}", err);
         eprintln!("Exiting");
         std::process::exit(1);
@@ -79,7 +36,7 @@ fn main() {
     });
 
     // The `take(3)` is to simulated a server being shutdown while it is
-    // serving requests, to test graceful termination. Remove it if not needed.
+    // serving requests, to test graceful termination. Remove it if unneeded.
     for stream in listener.incoming().take(3) {
         let stream = match stream {
             Err(err) => {
@@ -89,40 +46,11 @@ fn main() {
             Ok(s) => s,
         };
 
-        let execution_res = pool.execute(|| handle_connection(stream));
+        let execution_res = pool.execute(|| util::handle_connection(stream));
 
         match execution_res {
             Err(err) => simplelog::warn!("problem sending job to pool; {:?}", err),
             _ => continue,
         }
     }
-}
-
-fn handle_connection(mut stream: TcpStream) -> io::Result<()> {
-    let mut buffer = [0; 1024];
-    stream.read(&mut buffer)?;
-
-    let get = b"GET / HTTP/1.1\r\n";
-    let sleep = b"GET /sleep HTTP/1.1\r\n";
-
-    let (status_line, filename) = if buffer.starts_with(get) {
-        ("HTTP/1.1 200 OK", "hello.html")
-    } else if buffer.starts_with(sleep) {
-        thread::sleep(Duration::from_secs(5));
-        ("HTTP/1.1 200 OK", "hello.html")
-    } else {
-        ("HTTP/1.1 404 NOT FOUND", "404.html")
-    };
-
-    let contents = fs::read_to_string(filename)?;
-
-    let response = format!(
-        "{}\r\nContent-Length: {}\r\n\r\n{}",
-        status_line,
-        contents.len(),
-        contents
-    );
-
-    stream.write_all(response.as_bytes())?;
-    stream.flush()
 }

@@ -13,6 +13,8 @@ use std::{
 };
 use simplelog;
 
+pub mod util;
+
 /// A `ThreadPool`'s individual worker.
 ///
 /// Each is assigned a `usize` ID, and the handle of the spawned thread assigned to it.
@@ -164,9 +166,9 @@ impl ThreadPool {
     /// to one of its threads, FCFS via the `mpsc` channel whose reading end each thread
     /// has access to.
     ///
-    /// We can be further confident that FnOnce is the trait we want to use in the job's type
-    /// because the thread for running a request will only execute that request’s
-    /// closure one time, which matches the Once in FnOnce.
+    /// We can be further confident that `FnOnce` is the trait we want to use in the job's type
+    /// because the thread running a request will only execute that request’s closure one time,
+    /// which matches the `Once` in `FnOnce`.
     pub fn execute<F>(&self, f: F) -> Result<(), ThreadPoolError>
     where
         // We still use the () after FnOnce because this FnOnce represents a

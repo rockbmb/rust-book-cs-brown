@@ -1,5 +1,10 @@
 use chap_20_rust_web_server::ThreadPool;
 use log::SetLoggerError;
+use simplelog::{
+    ColorChoice, CombinedLogger, ConfigBuilder, LevelFilter, SharedLogger, TermLogger, TerminalMode,
+    WriteLogger,
+};
+
 use std::{
     fs,
     io::{self, prelude::*},
@@ -8,18 +13,18 @@ use std::{
     time::Duration,
 };
 
-use simplelog::{
-    ColorChoice, CombinedLogger, Config, LevelFilter, SharedLogger, TermLogger, TerminalMode,
-    WriteLogger,
-};
-
 fn init_logging_infrastructure(log_file_name : &str) -> Result<(), SetLoggerError>{
     // Init logging infrastructure. Just for curiosity's sake, we'll combine both
     // terminal and file logging.
     let log_file = fs::File::create(log_file_name);
+    let config = ConfigBuilder::new()
+        // This enables source-code location in logging message of any level
+        .set_location_level(LevelFilter::Error)
+        .build();
     let term_logger = TermLogger::new(
-        LevelFilter::Warn,
-        Config::default(),
+        // This is the field used to control the granularity of logs shown in the terminal.
+        LevelFilter::Info,
+        config.clone(),
         TerminalMode::Mixed,
         ColorChoice::Auto,
     );
@@ -32,7 +37,7 @@ fn init_logging_infrastructure(log_file_name : &str) -> Result<(), SetLoggerErro
         Ok(file) => {
             let file_logger = WriteLogger::new(
                 LevelFilter::Info,
-                Config::default(),
+                config,
                 file
             );
             logger_vec.push(file_logger);
@@ -43,14 +48,11 @@ fn init_logging_infrastructure(log_file_name : &str) -> Result<(), SetLoggerErro
 
 fn main() {
     let log_file_name = "rust_web_server.log";
-    match init_logging_infrastructure(log_file_name) {
-        Err(err) =>  {
-            eprintln!("main: Could not init logging infrastructure! Error: {:?}", err);
-            eprintln!("main: Exiting");
-            std::process::exit(1);
-        }
-        Ok(_) => {}
-    }
+    init_logging_infrastructure(log_file_name).unwrap_or_else(|err| {
+        eprintln!("Could not init logging infrastructure! Error: {:?}", err);
+        eprintln!("Exiting");
+        std::process::exit(1);
+    });
 
     //
     // The function is called bind because, in networking, connecting to a port
@@ -58,8 +60,8 @@ fn main() {
     //
     let addr = "127.0.0.1:7878";
     let listener = TcpListener::bind(addr).unwrap_or_else(|err| {
-        eprintln!(
-            "main: Problem creating TCP listener on address \"{}\". Error: {:?}",
+        simplelog::error!(
+            "Problem creating TCP listener on address \"{}\". Error: {:?}",
             addr, err
         );
         process::exit(1);
@@ -72,7 +74,7 @@ fn main() {
     // causing the old one to dropped with the every iteration of the loop below,
     // and then have to fix cryptic `Recv/PoisonError` problems :)
     let pool = ThreadPool::build(4).unwrap_or_else(|err| {
-        eprintln!("main: Problem creating the server's threadpool: {:?}", err);
+        simplelog::error!("Problem creating the server's threadpool: {:?}", err);
         process::exit(1);
     });
 
@@ -81,7 +83,7 @@ fn main() {
     for stream in listener.incoming().take(3) {
         let stream = match stream {
             Err(err) => {
-                eprintln!("main: could not read from TCP stream. Error: {:?}", err);
+                simplelog::error!("Could not read from TCP stream. Error: {:?}", err);
                 process::exit(1);
             }
             Ok(s) => s,
@@ -90,7 +92,7 @@ fn main() {
         let execution_res = pool.execute(|| handle_connection(stream));
 
         match execution_res {
-            Err(err) => eprintln!("main: problem sending job to pool; {:?}", err),
+            Err(err) => simplelog::warn!("problem sending job to pool; {:?}", err),
             _ => continue,
         }
     }

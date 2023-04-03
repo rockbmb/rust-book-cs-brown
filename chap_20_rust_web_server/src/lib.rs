@@ -11,6 +11,7 @@ use std::{
     sync::{mpsc, Arc, Mutex},
     thread,
 };
+use simplelog;
 
 /// A `ThreadPool`'s individual worker.
 ///
@@ -45,18 +46,18 @@ fn worker_func(id: usize, job_receiver: Arc<Mutex<mpsc::Receiver<Job>>>) {
         let msg = job_receiver.lock().unwrap().recv();
         match msg {
             Err(_) => {
-                eprintln!(
-                    "Worker thread {} disconnected due to closure of job queue; shutting down.",
+                simplelog::warn!(
+                    "<yellow>Worker {}</> disconnected due to closure of job queue; shutting down.",
                     id,
                 );
                 break;
             }
             Ok(job) => {
-                println!("Worker {id} got a job; executing");
+                simplelog::info!("<cyan>Worker {id}</> got a job; executing");
                 let job_result = job();
                 match job_result {
-                    Err(err) => eprintln!("Worker {id} failed a job with error: {:?}", err),
-                    Ok(_) => println!("Worker {id} successfully completed a job."),
+                    Err(err) => simplelog::warn!("<red>Worker {id}</> failed a job with error: {:?}", err),
+                    Ok(_) => simplelog::info!("<cyan>Worker {id}</> successfully completed a job."),
                 }
             }
         }
@@ -193,14 +194,14 @@ impl Drop for ThreadPool {
         std::mem::drop(self.job_sender.take());
 
         for worker in &mut self.workers {
-            println!("Shutting down worker {}", worker.id);
+            simplelog::trace!("impl Drop for ThreadPool: shutting down worker {}", worker.id);
 
             if let Some(handle) = worker.handle.take() {
                 let this_id = thread::current().id();
                 let thread_id = handle.thread().id();
                 match handle.join() {
                     Err(err) => {
-                        eprintln!(
+                        simplelog::error!(
                             "impl Drop for ThreadPool: thread {:?} failed to join on thread {:?}; error: {:?}",
                             this_id,
                             thread_id,
@@ -208,7 +209,7 @@ impl Drop for ThreadPool {
                         )
                     }
                     Ok(val) => {
-                        println!(
+                        simplelog::trace!(
                             "impl Drop for ThreadPool: thread {:?} successfully joined thread {:?} with result {:?}",
                             this_id,
                             thread_id,

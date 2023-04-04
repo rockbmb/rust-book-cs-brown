@@ -21,9 +21,9 @@ pub mod util;
 pub struct Worker {
     /// ID of the worker thread. It is the responsibility of `ThreadPool::build`'s caller
     /// to ensure each worker receives a unique ID.
-    id: usize,
+    pub id: usize,
     /// Handle of the thread assigned to this thread, spawned in `Worker::build`.
-    handle: Option<thread::JoinHandle<()>>,
+    pub handle: Option<thread::JoinHandle<()>>,
 }
 
 /// Enum representing possible errors when `Worker::build`ing an instance of
@@ -166,12 +166,12 @@ pub enum ThreadPoolError {
 ///   worker thread is spawned with.
 pub struct ThreadPool {
     /// Vector for workers, whose length is an argument to `ThreadPool::build`
-    workers: Vec<Worker>,
+    pub workers: Vec<Worker>,
     /// Sending end of a channel. It is wrapped in an `Option`, so that when
     /// the thread pool is `drop`ped, this end of the channel is `Option::take`n,
     /// signaling to the worker threads via the subsequent `mpsc::RecvError` that
     /// they must also shut down.
-    job_sender: Option<mpsc::Sender<Job>>,
+    pub job_sender: Option<mpsc::Sender<Job>>,
 }
 
 impl ThreadPool {

@@ -5,11 +5,12 @@ use std::{net::TcpListener, process};
 fn main() {
     // Setup logging infra
     let log_file_name = Some("rust_web_server.log");
-    util::init_logging_infrastructure(log_file_name).unwrap_or_else(|err| {
-        eprintln!("Could not init logging infrastructure! Error: {:?}", err);
-        eprintln!("Exiting");
-        std::process::exit(1);
-    });
+    util::init_logging_infrastructure(log_file_name, log::LevelFilter::Trace)
+        .unwrap_or_else(|err| {
+            eprintln!("Could not init logging infrastructure! Error: {:?}", err);
+            eprintln!("Exiting");
+            std::process::exit(1);
+        });
 
     //
     // The function is called bind because, in networking, connecting to a port

@@ -37,7 +37,10 @@ fn thread_pool_concurrency(thread_pool_size: usize, ratio_requests_to_workers: u
     // This test may be run multiple times, but logging infrastructure need only be
     // initialized once.
     // If the below returns `Err`, just use `()` and proceed with the test.
-    util::init_logging_infrastructure(None).unwrap_or(());
+    util::init_logging_infrastructure(
+        None,
+        log::LevelFilter::Info
+    ).unwrap_or(());
 
     let pool = server::ThreadPool::build(thread_pool_size).unwrap();
 
@@ -56,7 +59,7 @@ fn thread_pool_concurrency(thread_pool_size: usize, ratio_requests_to_workers: u
     // This is the delay passed to `concurrent_create_file` to ensure
     // the file is only created by the worker thread after that many milliseconds.
     let worker_delay: u64 = 1000;
-    let main_thread_delay: u64 = 100;
+    let main_thread_delay: u64 = 150;
 
     for filename in filenames.clone() {
         pool

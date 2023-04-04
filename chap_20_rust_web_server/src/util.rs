@@ -15,14 +15,14 @@ use simplelog::{
 ///
 /// The default logging configuration is used, which is then modified to allow
 /// source-code information on every log message, not just errors.
-pub fn init_logging_infrastructure(opt_log_file_name : Option<&str>) -> Result<(), SetLoggerError>{
+pub fn init_logging_infrastructure(opt_log_file_name : Option<&str>, log_level: LevelFilter) -> Result<(), SetLoggerError>{
     let config = ConfigBuilder::new()
         // This enables source-code location in logging message of any level
         .set_location_level(LevelFilter::Error)
         .build();
     let term_logger = TermLogger::new(
         // This is the field used to control the granularity of logs shown in the terminal.
-        LevelFilter::Trace,
+        log_level,
         config.clone(),
         TerminalMode::Mixed,
         ColorChoice::Auto,

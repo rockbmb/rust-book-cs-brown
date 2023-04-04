@@ -1,7 +1,8 @@
 //! This module contains some utilities used in the binary crate, and testing.
 //!
-//! There's a function to configure and initialize logging infrastructure, and
-//! another to handle each client's HTTP request, and respond appropriately.
+//! There's:
+//! * a function to configure and initialize logging infrastructure, and
+//! * another to handle each client's HTTP request, and respond appropriately.
 
 use std::{fs, io::{self, prelude::*}, net, thread, time};
 

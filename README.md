@@ -27,6 +27,10 @@ and only searches the file specified as argument.
 In Chapter 20, a very simple web server running on `localhost` is built. It is capable of serving
 concurrent requests, using a thread pool. The Rust `async` book does the same with `async/await`.
 
+The below `cargo` commands assume `pwd` is that of chapter 20's project.
+
+#### Running the server
+
 * Run `cargo run` to start the server, and then:
     - Access `127.0.0.1:7878` in a browser for the regular HTML being served
     - Access `127.0.0.1:7878/{anything}` for the HTML served in case of error
@@ -34,3 +38,11 @@ concurrent requests, using a thread pool. The Rust `async` book does the same wi
 
 To check the server thread pool's concurrent behavior, duplicate a `127.0.0.1:7878/sleep` tab while checking
 `STDOUT`.
+
+#### Tests and documentation
+
+* Run `cargo test` to test the concurrent behavior of `ThreadPool`. There are currently two integration tests,
+  that combine creating some files and `std::thread::sleep` to check `crate::ThreadPool` behaves correctly.
+
+* Run `cargo doc --open` to read the package's documentation, with notes reflecting the content in chapter 20,
+  and some of the author's own.

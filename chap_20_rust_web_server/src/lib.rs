@@ -219,8 +219,8 @@ impl ThreadPool {
     */
 
     /// This method is used to request the `ThreadPool` to assign the given task
-    /// to one of its threads, FCFS via the `mpsc` channel whose reading end each thread
-    /// has access to.
+    /// to one of its workers in an FCFS manner, via the `mpsc` channel whose reading
+    /// end each thread has access to.
     ///
     /// We can be further confident that `FnOnce` is the trait we want to use in the job's type
     /// because the thread running a request will only execute that request’s closure one time,
@@ -243,14 +243,16 @@ impl ThreadPool {
     }
 }
 
+/// In order to gracefully shutdown the thread pool and also deallocate
+/// resources correctly, some care is needed with `ThreadPool`'s drop instance.
+///
+/// The sending half of the `ThreadPool`'s `mpsc::channel`, owned by the main thread,
+/// is dropped, in order to signal the worker threads that when they read from their
+/// end of the channel and get a `ReceiveError`, it is time to shut themselves down.
 impl Drop for ThreadPool {
     fn drop(&mut self) {
         simplelog::debug!("Running impl Drop for ThreadPool");
 
-        // The sending half of the channel, residing in the main thread,
-        // is dropped, so that when the worker threads try to read from their
-        // end of the channel and get a `ReceiveError`, they'll know it is
-        // time to shut themselves down.
         std::mem::drop(self.job_sender.take());
 
         for worker in &mut self.workers {

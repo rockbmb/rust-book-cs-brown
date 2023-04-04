@@ -1,4 +1,5 @@
 use chap_20_rust_web_server as server;
+use chap_20_rust_web_server::util as util;
 
 use std::{fs, io::{self, Write}, time, thread};
 
@@ -34,6 +35,8 @@ fn concurrent_create_file(filename: &str, worker_delay_millis: u64) -> io::Resul
 /// Were this not the case, the test would fail, only passing after `N * t + ε` time
 /// had elapsed.
 fn thread_pool_concurrency() {
+    util::init_logging_infrastructure(None).unwrap();
+
     let thread_pool_size: usize = 5;
     let pool = server::ThreadPool::build(thread_pool_size).unwrap();
 

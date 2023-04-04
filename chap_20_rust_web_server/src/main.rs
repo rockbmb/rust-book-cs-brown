@@ -53,6 +53,4 @@ fn main() {
             _ => continue,
         }
     }
-
-    drop(pool);
 }

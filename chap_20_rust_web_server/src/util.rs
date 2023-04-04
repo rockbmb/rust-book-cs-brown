@@ -1,3 +1,8 @@
+//! This module contains some utilities used in the binary crate, and testing.
+//!
+//! There's a function to configure and initialize logging infrastructure, and
+//! another to handle each client's HTTP request, and respond appropriately.
+
 use std::{fs, io::{self, prelude::*}, net, thread, time};
 
 use log::SetLoggerError;
@@ -15,7 +20,10 @@ use simplelog::{
 ///
 /// The default logging configuration is used, which is then modified to allow
 /// source-code information on every log message, not just errors.
-pub fn init_logging_infrastructure(opt_log_file_name : Option<&str>, log_level: LevelFilter) -> Result<(), SetLoggerError>{
+pub fn init_logging_infrastructure(
+    opt_log_file_name : Option<&str>,
+    log_level: LevelFilter
+    ) -> Result<(), SetLoggerError> {
     let config = ConfigBuilder::new()
         // This enables source-code location in logging message of any level
         .set_location_level(LevelFilter::Error)
@@ -55,11 +63,17 @@ pub fn init_logging_infrastructure(opt_log_file_name : Option<&str>, log_level: 
             }
         }
     };
+
     CombinedLogger::init(logger_vec)
 }
 
 /// This function is passed to each worker thread's closure, so that they may concurrently
-/// serve the various requests in the `net::TcpStream` passed via the closure.
+/// serve the various requests made by clients in the `net::TcpStream` passed via the closure.
+///
+/// It is responsible for
+/// * parsing the request to see which endpoint was requested,
+/// * building the appropriate HTTP response, and
+/// * writing it into the socket.
 pub fn handle_connection(mut stream: net::TcpStream) -> io::Result<()> {
     let mut buffer = [0; 1024];
     stream.read(&mut buffer)?;

@@ -4,7 +4,7 @@
 //! final project, a concurrent web server that serves simple requests with basic HTML.
 //!
 //! It showcases some common Rust techniques such as `Arc + Mutex`, `mpsc::channel`,
-//! and shared ownership in a (thread) concurrency setting.
+//! and shared ownership in a (thread) concurrent setting.
 
 use std::{
     io,
@@ -19,19 +19,26 @@ pub mod util;
 ///
 /// Each is assigned a `usize` ID, and the handle of the spawned thread assigned to it.
 pub struct Worker {
+    /// ID of the worker thread. It is the responsibility of `ThreadPool::build`'s caller
+    /// to ensure each worker receives a unique ID.
     id: usize,
+    /// Handle of the thread assigned to this thread, spawned in `Worker::build`.
     handle: Option<thread::JoinHandle<()>>,
 }
 
+/// Enum representing possible errors when `Worker::build`ing an instance of
+/// `Worker`.
 #[derive(Debug)]
 pub enum WorkerError {
+    /// This variant occurs when it wasn't possible to spawn a thread to
+    /// associate the worker with.
     ThreadCreationError(io::Error),
 }
 
-/// Helper used to contain the closure each worker thread is spawned with.
+/// Each worker thread is `spawn`ed with this function.
 ///
 /// Having so much code inline makes it hard to understand what is part of
-/// `Worker::build`, and what is the thread's spawning closure.
+/// `Worker::build`, and what is the thread's spawning closure, so it was moved out.
 fn worker_func(id: usize, job_receiver: Arc<Mutex<mpsc::Receiver<Job>>>) {
     loop {
         // IMPORTANT
@@ -56,8 +63,7 @@ fn worker_func(id: usize, job_receiver: Arc<Mutex<mpsc::Receiver<Job>>>) {
             }
             Ok(job) => {
                 simplelog::info!("<cyan>Worker {id}</> got a job; executing");
-                let job_result = job();
-                match job_result {
+                match job() {
                     Err(err) => simplelog::warn!("<red>Worker {id}</> failed a job with error: {:?}", err),
                     Ok(_) => simplelog::info!("<cyan>Worker {id}</> successfully completed a job."),
                 }
@@ -72,6 +78,21 @@ impl Worker {
     /// Fails with `WorkerError` if it's not possible to start the worker's thread
     /// due to OS issues.
     ///
+    /// # Arguments
+    ///
+    /// * `id: usize`: ID of the worker being built. That it is unique must be enforced
+    ///    by the caller e.g. in this case, `ThreadPool::build`.
+    /// * `job_receiver: Arc<Mutex<mpsc::Receiver<Job>>>`: reading end of a channel, whose
+    ///    writing end resides in `ThreadPool`. As all other worker threads must also have
+    ///    access to it, it must be wrapped in an `Arc<Mutex<_>>`. It is through this channel
+    ///    that each channel will receive `Job`s.
+    ///
+    /// # Errors
+    ///
+    /// If the worker thread could not be created due to e.g. OS resource exhaustion, a
+    /// `WorkerThreadError` variant wrapping `io::Error` is returned. Otherwise,
+    /// the worker is returned.
+    ///
     /// # Panics
     ///
     /// This function doesn't panic.
@@ -81,7 +102,8 @@ impl Worker {
     ) -> Result<Worker, WorkerError> {
         let builder = thread::Builder::new().name(format!("Worker-{}", id));
 
-        let thread_res = builder.spawn(move || worker_func(id, job_receiver));
+        let thread_res = builder
+            .spawn(move || worker_func(id, job_receiver));
 
         match thread_res {
             Ok(thread_handle) => {
@@ -96,30 +118,64 @@ impl Worker {
     }
 }
 
-/// Type of closures that will be sent by the main server thread to
-/// its child worker threads, reprenting the computation it wishes them to perform.
+/// This type represents the requests that will be made of a `ThreadPool`'s `Workers`.
 ///
 /// Having an explicit `io::Result` return value is not needed if the result is simply
 /// `unwrap`ped, but it seems like a good exercise to do this.
+///
+/// Furthermore, it enabled different kinds of requests to be made in tests:
+/// * in the actual server, a `Job` is a connection handler on a `net::TcpStream`
+/// * on tests, a `Job` is a request to create a file with some content
 type Job = Box<dyn FnOnce() -> io::Result<()> + Send + 'static>;
 
+/// This enum represents errors that can occur not just in `ThreadPool::build`, but also
+/// in `ThreadPool::execute`, in the course of a request's execution.
+///
+/// This might be a design flaw, to mix errors that can arise from a constructor, and
+/// those from a method, so I plan on changing this.
 #[derive(Debug)]
 pub enum ThreadPoolError {
+    /// A `ThreadPool`'s thread count is of type `usize`, which while avoiding
+    /// negative inputs in `build`, leaves `0 : usize` as a possibility, which will
+    /// result in this error.
     ZeroThreadThreadPoolError,
+
+    /// When `build`ing a `ThreadPool`, its `Worker`s also need to be built,
+    /// which may result in `WorkerError` from `Worker::build`. If even one `Worker`
+    /// fails with that variant, `ThreadPool::build` will fail with this one,
+    /// because the OS being unable to spawn a thread is a serious problem.
     WorkerError(WorkerError),
+
+    /// 
     InexistentJobSenderError,
     JobTransmissionError(mpsc::SendError<Job>),
 }
 
+/// A thread pool used to concurrently execute requests of the same type.
+///
+/// A request is represented by `Job`, seen also in this module.
+///
+/// A thread pool consists of two parts:
+/// * the workers, each containing a thread used to run a request
+/// * the sending end of an `mpsc::channel`, taking into account that
+///   the writing end, wrapped in `Arc<Mutex<_>>`, is passed into the closure each
+///   worker thread is spawned with.
 pub struct ThreadPool {
+    /// Vector for workers, whose length is an argument to `ThreadPool::build`
     workers: Vec<Worker>,
+    /// Sending end of a channel. It is wrapped in an `Option`, so that when
+    /// the thread pool is `drop`ped, this end of the channel is `Option::take`n,
+    /// signaling to the worker threads via the subsequent `mpsc::RecvError` that
+    /// they must also shut down.
     job_sender: Option<mpsc::Sender<Job>>,
 }
 
 impl ThreadPool {
     /// Create a new ThreadPool.
     ///
-    /// The size is the number of threads in the pool.
+    /// The size passed as arument will be the number of threads in the pool.
+    ///
+    /// # Errors
     ///
     /// * If the user selects an invalid thread pool size, the `Err` variant
     ///   is returned;
@@ -192,7 +248,7 @@ impl Drop for ThreadPool {
         simplelog::debug!("Running impl Drop for ThreadPool");
 
         // The sending half of the channel, residing in the main thread,
-        // is dropped, so that the worker threads try to read from their
+        // is dropped, so that when the worker threads try to read from their
         // end of the channel and get a `ReceiveError`, they'll know it is
         // time to shut themselves down.
         std::mem::drop(self.job_sender.take());

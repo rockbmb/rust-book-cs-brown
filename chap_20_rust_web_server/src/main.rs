@@ -19,11 +19,14 @@ fn main() {
     let addr = "127.0.0.1:7878";
     let listener = TcpListener::bind(addr).unwrap_or_else(|err| {
         simplelog::error!(
-            "Problem creating TCP listener on address \"{}\". Error: {:?}",
-            addr, err
+            "Problem creating TCP listener on address \"{addr}\". Error: {:?}",
+            err
         );
+        simplelog::error!("Exiting");
         process::exit(1);
     });
+
+    let thread_pool_size = 4;
 
     // The below was left inside the `for` loop by mistake, which caused
     // many problems.
@@ -31,27 +34,26 @@ fn main() {
     // Ideally we don't create a thread pool with every new request,
     // causing the old one to dropped with the every iteration of the loop below,
     // and then have to fix cryptic `Recv/PoisonError` problems :)
-    let pool = ThreadPool::build(4).unwrap_or_else(|err| {
-        simplelog::error!("Problem creating the server's threadpool: {:?}", err);
-        process::exit(1);
-    });
+    let pool = ThreadPool::build(thread_pool_size)
+        .unwrap_or_else(|err| {
+            simplelog::error!("Problem creating the server's threadpool: {:?}", err);
+            simplelog::error!("Exiting");
+            process::exit(1);
+        });
 
     // The `take(3)` is to simulated a server being shutdown while it is
     // serving requests, to test graceful termination. Remove it if unneeded.
     for stream in listener.incoming().take(3) {
-        let stream = match stream {
-            Err(err) => {
-                simplelog::error!("Could not read from TCP stream. Error: {:?}", err);
-                process::exit(1);
-            }
-            Ok(s) => s,
-        };
+        let stream = stream.unwrap_or_else(|err| {
+            simplelog::error!("Could not read from TCP stream. Error: {:?}", err);
+            simplelog::error!("Exiting");
+            process::exit(1);
+        });
 
         let execution_res = pool.execute(|| util::handle_connection(stream));
 
-        match execution_res {
-            Err(err) => simplelog::warn!("problem sending job to pool; {:?}", err),
-            _ => continue,
-        }
+        execution_res.unwrap_or_else(|err| {
+            simplelog::warn!("problem sending job to pool; {:?}", err)
+        });
     }
 }

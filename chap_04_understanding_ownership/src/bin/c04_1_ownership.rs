@@ -44,6 +44,7 @@ fn add_big_strings(dst: &mut Vec<String>, src: &[String]) {
         }
     }
 } */
+
 /* 
 fn add_big_strings(dst: &mut Vec<String>, src: &[String]) {
     let largest: &String = dst.iter().max_by_key(|s| s.len()).unwrap();
@@ -77,4 +78,33 @@ fn main() {
 fn add_suffix(mut name: String) -> String {
     name.push_str(" Jr.");
     name
+}
+
+#[derive(Debug)]
+struct B {
+    b: u8
+}
+
+#[derive(Debug)]
+struct A {
+    a: u8,
+    b: B
+}
+
+/// From "Move by Example" book,
+/// https://move-book.com/advanced-topics/ownership-and-references.html#borrow-checking
+#[test]
+fn test() {
+    let b = B {b: 9};
+    let mut a = A { a: 10, b};
+
+    // --->
+    let x = &mut a;
+    // <---
+    // cannot borrow `a.b` as mutable more than once at a time
+    // second mutable borrow occurs here
+    let y = &mut a.b;
+    // The below fails with the error above, if uncommented
+    // println!("{:?}", x);
+    println!("{:?}", y);
 }
